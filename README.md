@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mousa
 
-## Getting Started
+A calm writing room for finding an angle, shaping a short post, and giving it a second look. Built with Next.js App Router, TypeScript, React, Zustand, and an optional Anthropic integration.
 
-First, run the development server:
+## The writing flow
 
-```bash
+- Set an audience, topic, and tone; explore five ideas with opening hooks.
+- Choose an idea, edit the draft, check its length, and copy it with optional hashtags.
+- Review a draft and keep control of the final wording.
+- Search and reopen saved ideas, drafts, and reviews. Draft edits persist across reloads.
+
+The interface works on desktop and mobile, with labelled controls, keyboard focus, reduced-motion support, and explicit loading and error states.
+
+## Sample launch
+
+Without an API key, Mousa launches as a clearly labelled sample workspace. Ideas and drafts are authored examples; review notes illustrate the interface rather than assess the user's writing. Sample mode makes no external AI requests and does not require a database or account. Nothing is published automatically.
+
+Work stays in this browser's local storage, including up to 50 saved items. It does not sync across devices. Copy important drafts before clearing browser data. Storage failures show a message while preserving the in-memory draft.
+
+## Run locally
+
+Use Node.js 24 and npm:
+
+```sh
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. For a production run:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sh
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Optional live AI
 
-## Learn More
+Copy `.env.example` to `.env.local` and supply `ANTHROPIC_API_KEY` privately. An optional `ANTHROPIC_MODEL` selects the model. Server credentials never enter the browser bundle. The studio offers live writing only when a key is present; missing credentials return a clear service-unavailable response. The sample release is verified without a provider key; live provider responses are validated by automated tests with mocks.
 
-To learn more about Next.js, take a look at the following resources:
+The server validates input lengths, tones, modes, and provider output. Legacy anonymous server history is retired: `/api/history` and `/api/histore` return 410. Current saved work uses browser storage, independent of Supabase availability.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Checks
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sh
+npm test
+npm run lint
+npm run typecheck
+npm run build
+npm audit --omit=dev
+```
 
-## Deploy on Vercel
+Regression tests cover request validation, missing credentials, malformed provider output, working generation without a database, local origin handling, draft edit preservation, saved brief context, review provenance, persistence, and storage failure.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Import `mosesfawole/mousa` into Vercel, select the Next.js preset, and deploy the production branch. Leave environment credentials unset for the sample experience. For an existing project, publish the production branch to trigger its deployment. No database setup is needed for this release.

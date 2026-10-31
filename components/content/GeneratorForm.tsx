@@ -1,134 +1,96 @@
 "use client";
-import { useState } from "react";
-import { Wand2, Loader2, Sparkles } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { useContentStore } from "@/store/useContentStore";
+import { postContent, errorMessage } from "@/lib/browser-api";
 import ToneSelector from "@/components/ui/ToneSelector";
-
-export default function GeneratorForm() {
-  const {
-    niche,
-    setNiche,
-    tone,
-    topic,
-    setTopic,
-    setIdeas,
-    setIsGenerating,
-    isGenerating,
-    generateError,
-    setGenerateError,
-    clearGenerator,
-  } = useContentStore();
-
-  const handleSubmit = async (e: React.FormEvent) => {
+import type { GenerateResponse } from "@/types";
+export default function GeneratorForm({ sampleMode }: { sampleMode: boolean }) {
+  const s = useContentStore();
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!niche.trim()) return;
-
-    setIsGenerating(true);
-    setGenerateError(null);
-    clearGenerator();
-
+    if (!s.niche.trim() || s.isGenerating || s.isExpanding) return;
+    const brief = {
+      niche: s.niche.trim(),
+      tone: s.tone,
+      topic: s.topic.trim(),
+    };
+    s.setIsGenerating(true);
+    s.setGenerateError(null);
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ niche, tone, topic }),
+      const data = await postContent<GenerateResponse>("/api/generate", {
+        ...brief,
+        mode: sampleMode ? "sample" : "live",
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Generation failed");
-
-      setIdeas(data.ideas);
-    } catch (err: any) {
-      setGenerateError(err.message);
+      s.acceptGeneration(data, brief);
+    } catch (error) {
+      s.setGenerateError(errorMessage(error));
     } finally {
-      setIsGenerating(false);
+      s.setIsGenerating(false);
     }
-  };
-
+  }
+  const busy = s.isGenerating || s.isExpanding;
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Niche input */}
-      <div className="space-y-2">
-        <label
-          className="text-sm font-medium"
-          style={{ color: "rgba(255,255,255,0.7)" }}
-        >
-          Your niche
-          <span
-            className="ml-1 text-xs"
-            style={{ color: "rgba(255,255,255,0.3)" }}
-          >
-            (who are you and what do you talk about?)
-          </span>
-        </label>
+    <form onSubmit={submit} aria-label="Writing brief">
+      <div className="field">
+        <label htmlFor="niche">Who are you writing for?</label>
         <input
-          type="text"
-          placeholder="e.g. frontend developer sharing tips, fitness coach, startup founder..."
-          value={niche}
-          onChange={(e) => setNiche(e.target.value)}
+          id="niche"
           className="mousa-input"
+          placeholder="e.g. developers building side projects"
+          value={s.niche}
+          onChange={(e) => s.setNiche(e.target.value)}
+          maxLength={200}
           required
+          disabled={busy}
         />
+        <span className="field-help">
+          Your audience, niche, or the things you know well.
+        </span>
       </div>
-
-      {/* Tone selector */}
-      <ToneSelector />
-
-      {/* Optional topic */}
-      <div className="space-y-2">
-        <label
-          className="text-sm font-medium"
-          style={{ color: "rgba(255,255,255,0.7)" }}
-        >
-          Specific topic
-          <span
-            className="ml-1 text-xs"
-            style={{ color: "rgba(255,255,255,0.3)" }}
-          >
-            (optional — leave blank for variety)
-          </span>
+      <div className="field">
+        <label htmlFor="topic">
+          What’s on your mind? <span>Optional</span>
         </label>
-        <input
-          type="text"
-          placeholder="e.g. TypeScript tips, morning routines, fundraising..."
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
+        <textarea
+          id="topic"
           className="mousa-input"
+          rows={3}
+          placeholder="A lesson, an opinion, a tiny win..."
+          value={s.topic}
+          onChange={(e) => s.setTopic(e.target.value)}
+          maxLength={500}
+          disabled={busy}
         />
       </div>
-
-      {/* Error */}
-      {generateError && (
-        <div
-          className="px-4 py-3 rounded-xl text-sm"
-          style={{
-            background: "rgba(255,77,109,0.1)",
-            border: "1px solid rgba(255,77,109,0.2)",
-            color: "#ff6b8a",
-          }}
-        >
-          {generateError}
+      <ToneSelector disabled={busy} />
+      {s.generateError && (
+        <div className="error-box" role="alert">
+          {s.generateError}
         </div>
       )}
-
-      {/* Submit */}
       <button
+        className="btn btn-violet"
+        style={{ width: "100%" }}
         type="submit"
-        disabled={isGenerating || !niche.trim()}
-        className="btn-primary w-full flex items-center justify-center gap-2"
+        disabled={busy || !s.niche.trim()}
       >
-        {isGenerating ? (
+        {s.isGenerating ? (
           <>
-            <Loader2 size={16} className="animate-spin" />
-            Generating ideas...
+            <Loader2 className="spin" size={14} /> Finding a few angles…
           </>
         ) : (
           <>
-            <Sparkles size={16} />
-            Generate Post Ideas
+            <Sparkles size={14} />
+            {sampleMode ? "Explore sample ideas" : "Find five ideas"}
+            <ArrowRight size={14} />
           </>
         )}
       </button>
+      <p className="brief-footnote">
+        {sampleMode
+          ? "Five illustrative angles. Yours to explore."
+          : "AI suggestions are a starting point. Your judgement comes next."}
+      </p>
     </form>
   );
 }

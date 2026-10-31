@@ -1,285 +1,347 @@
 "use client";
 import { useState } from "react";
 import {
-  Wand2,
+  Feather,
+  ArrowUpRight,
+  Loader2,
+  Lightbulb,
   Copy,
   Check,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  Hash,
+  Bookmark,
+  ScanLine,
 } from "lucide-react";
 import { useContentStore } from "@/store/useContentStore";
-import type { Idea } from "@/types";
-
-function IdeaCard({ idea, index }: { idea: Idea; index: number }) {
-  const { niche, tone, setIdeas, ideas } = useContentStore();
-  const [isExpanding, setIsExpanding] = useState(false);
-  const [expanded, setExpanded] = useState<{
-    tweet: string;
-    hashtags: string[];
-    tip: string;
-  } | null>(null);
-  const [showExpanded, setShowExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleExpand = async () => {
-    if (expanded) {
-      setShowExpanded(!showExpanded);
+import {
+  postContent,
+  errorMessage,
+  copyText,
+  composePost,
+} from "@/lib/browser-api";
+import type { Idea, ExpandResponse } from "@/types";
+export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
+  const s = useContentStore();
+  const [expandError, setExpandError] = useState<string | null>(null);
+  const [expandingId, setExpandingId] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
+  const [includeTags, setIncludeTags] = useState(false);
+  const [notice, setNotice] = useState("");
+  function focusDraft() {
+    setTimeout(() => document.getElementById("draft-text")?.focus(), 0);
+  }
+  async function expand(idea: Idea) {
+    if (s.isExpanding || s.isGenerating) return;
+    if (s.draft?.id === `draft-${idea.id}`) {
+      focusDraft();
       return;
     }
-
-    setIsExpanding(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/expand", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idea: idea.idea,
-          niche,
-          tone,
-          ideaId: idea.id,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to expand");
-
-      setExpanded(data);
-      setShowExpanded(true);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsExpanding(false);
-    }
-  };
-
-  const copyTweet = async () => {
-    if (!expanded) return;
-    await navigator.clipboard.writeText(
-      `${expanded.tweet}\n\n${expanded.hashtags.map((h) => `#${h}`).join(" ")}`,
+    const existing = s.history.find(
+      (item) => item.id === `draft-${idea.id}` && item.type === "tweet",
     );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Gradient colors cycling through for each card
-  const gradients = [
-    "rgba(124,58,237,0.15)",
-    "rgba(244,114,182,0.12)",
-    "rgba(96,165,250,0.12)",
-    "rgba(52,211,153,0.12)",
-    "rgba(251,191,36,0.12)",
-  ];
-
+    if (existing) {
+      s.reopen(existing);
+      focusDraft();
+      setTimeout(
+        () =>
+          document
+            .getElementById("draft-panel")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        0,
+      );
+      return;
+    }
+    s.setIsExpanding(true);
+    setExpandingId(idea.id);
+    setExpandError(null);
+    try {
+      const brief = s.generationBrief || { niche: s.niche, tone: s.tone };
+      const data = await postContent<ExpandResponse>("/api/expand", {
+        idea: idea.idea,
+        niche: brief.niche,
+        tone: brief.tone,
+        mode: sampleMode ? "sample" : "live",
+      });
+      s.openDraft({
+        id: `draft-${idea.id}`,
+        ideaId: idea.id,
+        brief,
+        prompt: idea.idea,
+        tweet: data.tweet,
+        hashtags: data.hashtags,
+        tip: data.tip,
+        source: data.source || "sample",
+      });
+      setNotice("");
+      setCopyStatus("idle");
+      setIncludeTags(false);
+      focusDraft();
+      setTimeout(
+        () =>
+          document
+            .getElementById("draft-panel")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        0,
+      );
+    } catch (error) {
+      setExpandError(errorMessage(error));
+    } finally {
+      s.setIsExpanding(false);
+      setExpandingId(null);
+    }
+  }
+  const draft = s.draft;
+  const composed = draft
+    ? composePost(draft.tweet, draft.hashtags, includeTags)
+    : "";
+  const count = Array.from(composed).length;
+  const saved = s.history.find((item) => item.id === draft?.id);
+  const isSaved =
+    !!draft &&
+    saved?.output === draft.tweet &&
+    JSON.stringify(saved.hashtags || []) === JSON.stringify(draft.hashtags);
+  async function copy() {
+    if (!draft) return;
+    try {
+      await copyText(composed);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+  }
   return (
-    <div
-      className="glass-hover rounded-2xl p-5 space-y-4 animate-slide-up"
-      style={{
-        background: gradients[index % gradients.length],
-        border: "1px solid rgba(255,255,255,0.08)",
-        animationDelay: `${index * 80}ms`,
-      }}
-    >
-      {/* Idea number + idea text */}
-      <div className="flex items-start gap-3">
-        <span
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-          style={{
-            background: "linear-gradient(135deg, #7c3aed, #c084fc)",
-            color: "white",
-          }}
-        >
-          {index + 1}
+    <div className="result-column">
+      <div className="result-header">
+        <h2>Your next starting point</h2>
+        <span>
+          {s.isGenerating
+            ? "Finding angles…"
+            : s.ideas.length
+              ? `${s.ideas.length} ideas`
+              : "A little room to think"}
         </span>
-        <div className="flex-1 min-w-0">
-          <p
-            className="text-sm font-medium leading-relaxed"
-            style={{ color: "rgba(255,255,255,0.9)" }}
-          >
-            {idea.idea}
+      </div>
+      {s.isGenerating ? (
+        <div role="status" aria-label="Finding ideas">
+          {[0, 1, 2].map((i) => (
+            <div className="skeleton" key={i}>
+              <div className="skeleton-line" style={{ width: "85%" }} />
+              <div
+                className="skeleton-line"
+                style={{ width: "65%", marginBottom: 0 }}
+              />
+            </div>
+          ))}
+        </div>
+      ) : s.ideas.length ? (
+        <div className="idea-list" aria-label="Post ideas">
+          {s.ideas.map((idea, index) => (
+            <article
+              className={`idea-card ${draft?.ideaId === idea.id ? "selected" : ""}`}
+              key={idea.id}
+            >
+              <span className="idea-number">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <h3>{idea.idea}</h3>
+                {idea.hook && <p className="idea-hook">{idea.hook}</p>}
+                <div className="idea-actions">
+                  <button
+                    className="text-button"
+                    disabled={s.isExpanding}
+                    onClick={() => expand(idea)}
+                    aria-label={`Write draft for idea ${index + 1}`}
+                  >
+                    {expandingId === idea.id ? (
+                      <>
+                        <Loader2 size={12} className="spin" /> Shaping a draft…
+                      </>
+                    ) : (
+                      <>
+                        Make it a draft <ArrowUpRight size={13} />
+                      </>
+                    )}
+                  </button>
+                  <small>
+                    {s.generationBrief ? "An angle, not a script" : ""}
+                  </small>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">
+          <span className="empty-symbol">
+            <Feather size={32} strokeWidth={1.2} />
+          </span>
+          <h3 className="serif">Your ideas belong here.</h3>
+          <p>
+            Start with who you’re writing for and what’s on your mind. We’ll
+            find a few ways into it.
           </p>
         </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <p className="text-xs" style={{ color: "#ff6b8a" }}>
-          {error}
-        </p>
       )}
-
-      {/* Expanded tweet */}
-      {expanded && showExpanded && (
-        <div
-          className="rounded-xl p-4 space-y-3"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
+      <span role="status" className="sr-only">
+        {!s.isGenerating && s.ideas.length
+          ? `${s.ideas.length} ideas are ready. Choose an idea to write a draft.`
+          : ""}
+      </span>
+      {expandError && (
+        <div role="alert" className="error-box">
+          {expandError}
+        </div>
+      )}
+      {!draft && (
+        <div className="writing-tip">
+          <Lightbulb size={15} />
+          <p>
+            <strong>A small writing thought.</strong> The most interesting post
+            is often the thing you almost didn’t share.
+          </p>
+        </div>
+      )}
+      {draft && (
+        <section
+          className="panel draft-panel"
+          id="draft-panel"
+          aria-label="Draft editor"
         >
-          {/* Tweet text */}
-          <p
-            className="text-sm leading-relaxed"
-            style={{ color: "rgba(255,255,255,0.85)" }}
-          >
-            {expanded.tweet}
-          </p>
-
-          {/* Character count */}
-          <p
-            className="text-[11px]"
-            style={{
-              color:
-                expanded.tweet.length > 280
-                  ? "#ff6b8a"
-                  : "rgba(255,255,255,0.3)",
+          <div className="panel-heading">
+            <h2>Make it sound like you.</h2>
+            <span className="mode-pill">
+              {draft.source === "sample" ? "Sample draft" : "AI-assisted draft"}
+            </span>
+          </div>
+          {draft.source === "sample" && (
+            <p className="field-help" style={{ marginBottom: 13 }}>
+              An illustrative story. Replace the details with your own
+              experience before sharing.
+            </p>
+          )}
+          <label htmlFor="draft-text" className="sr-only">
+            Edit your draft
+          </label>
+          <textarea
+            id="draft-text"
+            className="mousa-input draft-editor"
+            value={draft.tweet}
+            onChange={(e) => {
+              s.setDraftText(e.target.value);
+              setCopyStatus("idle");
+              setNotice("");
             }}
-          >
-            {expanded.tweet.length} / 280 characters
-          </p>
-
-          {/* Hashtags */}
-          <div className="flex flex-wrap gap-1.5">
-            {expanded.hashtags.map((tag) => (
-              <span
-                key={tag}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
+            maxLength={2000}
+            rows={5}
+          />
+          <div className="draft-meta">
+            <span>Room to edit. Nothing is posted automatically.</span>
+            <span className={count > 280 ? "over-limit" : ""}>
+              {count} / 280
+            </span>
+          </div>
+          {!!draft.hashtags.length && (
+            <>
+              <div className="tag-list">
+                {draft.hashtags.map((tag) => (
+                  <span className="tag" key={tag}>
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+              <label
                 style={{
-                  background: "rgba(124,58,237,0.2)",
-                  color: "#c084fc",
-                  border: "1px solid rgba(124,58,237,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  color: "var(--muted)",
                 }}
               >
-                <Hash size={9} />
-                {tag}
-              </span>
-            ))}
-          </div>
-
-          {/* Tip */}
-          <div
-            className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs"
-            style={{
-              background: "rgba(52,211,153,0.08)",
-              border: "1px solid rgba(52,211,153,0.2)",
-              color: "#34d399",
-            }}
-          >
-            <span className="shrink-0">💡</span>
-            {expanded.tip}
-          </div>
-
-          {/* Copy button */}
-          <button
-            onClick={copyTweet}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all w-full justify-center"
-            style={{
-              background: copied
-                ? "rgba(52,211,153,0.15)"
-                : "rgba(255,255,255,0.07)",
-              border: `1px solid ${copied ? "rgba(52,211,153,0.3)" : "rgba(255,255,255,0.1)"}`,
-              color: copied ? "#34d399" : "rgba(255,255,255,0.6)",
-            }}
-          >
-            {copied ? (
-              <>
-                <Check size={12} /> Copied!
-              </>
-            ) : (
-              <>
-                <Copy size={12} /> Copy Tweet + Hashtags
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Expand button */}
-      <button
-        onClick={handleExpand}
-        disabled={isExpanding}
-        className="flex items-center gap-1.5 text-xs font-medium transition-all"
-        style={{ color: "#c084fc" }}
-      >
-        {isExpanding ? (
-          <>
-            <Loader2 size={12} className="animate-spin" /> Writing tweet...
-          </>
-        ) : expanded ? (
-          showExpanded ? (
-            <>
-              <ChevronUp size={12} /> Hide tweet
-            </>
-          ) : (
-            <>
-              <ChevronDown size={12} /> Show tweet
-            </>
-          )
-        ) : (
-          <>
-            <Wand2 size={12} /> Write Tweet
-          </>
-        )}
-      </button>
-    </div>
-  );
-}
-
-export default function PostIdeas() {
-  const { ideas, isGenerating } = useContentStore();
-
-  // Loading skeletons while generating
-  if (isGenerating) {
-    return (
-      <div className="space-y-3">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="rounded-2xl p-5 space-y-3"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className="w-7 h-7 rounded-lg shimmer shrink-0"
-                style={{ background: "rgba(255,255,255,0.08)" }}
-              />
-              <div className="flex-1 space-y-2">
-                <div
-                  className="h-3 rounded-full shimmer w-full"
-                  style={{ background: "rgba(255,255,255,0.06)" }}
+                <input
+                  type="checkbox"
+                  checked={includeTags}
+                  onChange={(e) => {
+                    setIncludeTags(e.target.checked);
+                    setCopyStatus("idle");
+                  }}
                 />
-                <div
-                  className="h-3 rounded-full shimmer w-3/4"
-                  style={{ background: "rgba(255,255,255,0.04)" }}
-                />
-              </div>
+                Include hashtags when copying
+              </label>
+            </>
+          )}
+          <p className="field-help">
+            Length guide includes selected hashtags. X may count links and some
+            characters differently.
+          </p>
+          {count > 280 && (
+            <p className="field-help over-limit" role="status">
+              This draft is over the usual post length. Trim it before sharing.
+            </p>
+          )}
+          <div className="draft-actions">
+            <button
+              className="btn btn-primary"
+              onClick={copy}
+              disabled={!draft.tweet.trim()}
+            >
+              {copyStatus === "copied" ? (
+                <Check size={13} />
+              ) : (
+                <Copy size={13} />
+              )}{" "}
+              {copyStatus === "copied" ? "Copied" : "Copy post"}
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                if (s.saveDraft()) setNotice("Draft saved in this browser.");
+              }}
+              disabled={!draft.tweet.trim() || isSaved}
+            >
+              <Bookmark size={13} />
+              {isSaved ? "Saved" : "Save draft"}
+            </button>
+            <button
+              className="btn btn-quiet"
+              disabled={!draft.tweet.trim()}
+              onClick={() => {
+                s.setTweetToAnalyze(draft.tweet);
+                s.setAnalyzeNiche(
+                  draft.brief?.niche || s.generationBrief?.niche || s.niche,
+                );
+                s.setAnalysisResult(null);
+                s.setActiveTab("analyze");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              <ScanLine size={13} />
+              Review
+            </button>
+          </div>
+          {copyStatus === "error" && (
+            <p role="alert" className="error-box">
+              Copy isn’t available in this browser. Select the draft text and
+              copy it manually.
+            </p>
+          )}
+          {notice && (
+            <p role="status" className="notice" style={{ marginTop: 12 }}>
+              {notice}
+            </p>
+          )}
+          {draft.tip && (
+            <div
+              className="writing-tip"
+              style={{ padding: "16px 0 0", borderBottom: 0 }}
+            >
+              <Lightbulb size={14} />
+              <p>{draft.tip}</p>
             </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (ideas.length === 0) return null;
-
-  return (
-    <div className="space-y-3">
-      <p
-        className="text-xs font-medium"
-        style={{ color: "rgba(255,255,255,0.4)" }}
-      >
-        {ideas.length} ideas generated — click "Write Tweet" to expand any idea
-      </p>
-      {ideas.map((idea, i) => (
-        <IdeaCard key={idea.id ?? i} idea={idea} index={i} />
-      ))}
+          )}
+        </section>
+      )}
     </div>
   );
 }
