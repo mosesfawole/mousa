@@ -1,200 +1,187 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Trash2, Wand2, BarChart2, Lightbulb, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { Search, Bookmark, ArrowUpRight, Trash2, Undo2 } from "lucide-react";
+import { useContentStore } from "@/store/useContentStore";
 import type { Content } from "@/types";
-
+const labels = { idea: "Ideas", tweet: "Draft", analysis: "Review" };
 export default function HistoryPanel() {
-  const [history, setHistory] = useState<Content[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const fetchHistory = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/history");
-      const data = await res.json();
-      setHistory(Array.isArray(data) ? data : []);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    try {
-      await fetch(`/api/history?id=${id}`, { method: "DELETE" });
-      setHistory((prev) => prev.filter((h) => h.id !== id));
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const typeConfig = {
-    idea: {
-      icon: <Lightbulb size={12} />,
-      label: "Ideas",
-      color: "#c084fc",
-    },
-    tweet: {
-      icon: <Wand2 size={12} />,
-      label: "Tweet",
-      color: "#60a5fa",
-    },
-    analysis: {
-      icon: <BarChart2 size={12} />,
-      label: "Analysis",
-      color: "#f472b6",
-    },
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[...Array(4)].map((_, i) => (
-          <div
-            key={i}
-            className="rounded-2xl p-4 shimmer"
+  const s = useContentStore();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [deleted, setDeleted] = useState<Content | null>(null);
+  const [error, setError] = useState("");
+  const items = s.history.filter(
+    (item) =>
+      (filter === "all" || item.type === filter) &&
+      (item.prompt + " " + item.output)
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+  );
+  return (
+    <section aria-label="Saved work">
+      <div className="history-toolbar">
+        <div style={{ position: "relative", width: "100%", maxWidth: 360 }}>
+          <Search
+            size={14}
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              height: "80px",
+              position: "absolute",
+              top: 14,
+              left: 12,
+              color: "var(--muted)",
             }}
           />
-        ))}
-      </div>
-    );
-  }
-
-  if (history.length === 0) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center py-16 gap-3 rounded-2xl"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.06)",
-        }}
-      >
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center"
-          style={{ background: "rgba(124,58,237,0.15)" }}
-        >
-          <Lightbulb size={20} style={{ color: "#c084fc" }} />
+          <label htmlFor="history-search" className="sr-only">
+            Search saved work
+          </label>
+          <input
+            id="history-search"
+            className="mousa-input"
+            style={{ paddingLeft: 34 }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a thought, draft, or idea…"
+          />
         </div>
-        <p
-          className="text-sm font-medium"
-          style={{ color: "rgba(255,255,255,0.5)" }}
+        <label htmlFor="history-filter" className="sr-only">
+          Filter saved work
+        </label>
+        <select
+          id="history-filter"
+          className="mousa-input"
+          style={{ width: "auto", minWidth: 115 }}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
         >
-          No history yet
-        </p>
-        <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-          Generate ideas or analyze a tweet to get started
-        </p>
+          <option value="all">All work</option>
+          <option value="idea">Ideas</option>
+          <option value="tweet">Drafts</option>
+          <option value="analysis">Reviews</option>
+        </select>
+        <span className="muted" style={{ fontSize: 11 }}>
+          {items.length} saved
+        </span>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-          {history.length} sessions saved
-        </p>
-        <button
-          onClick={fetchHistory}
-          className="flex items-center gap-1 text-xs transition-colors"
-          style={{ color: "rgba(255,255,255,0.3)" }}
-        >
-          <RefreshCw size={11} />
-          Refresh
-        </button>
-      </div>
-
-      {history.map((item) => {
-        const config = typeConfig[item.type] ?? typeConfig.idea;
-
-        return (
-          <div
-            key={item.id}
-            className="glass-hover rounded-2xl p-4 space-y-2 animate-fade-in"
+      {deleted && (
+        <div className="toast" role="status">
+          <span>Removed from saved work.</span>
+          <button
+            className="text-button"
+            onClick={() => {
+              s.addHistory(deleted);
+              setDeleted(null);
+            }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Type badge */}
-                <span
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
-                  style={{
-                    background: `${config.color}18`,
-                    color: config.color,
-                    border: `1px solid ${config.color}30`,
-                  }}
-                >
-                  {config.icon}
-                  {config.label}
+            <Undo2 size={13} />
+            Undo
+          </button>
+        </div>
+      )}
+      {error && (
+        <div className="error-box" role="alert">
+          {error}
+        </div>
+      )}
+      {!s.historyLoaded ? (
+        <p className="field-help" role="status">
+          Opening your saved workspace…
+        </p>
+      ) : !items.length ? (
+        <div className="empty-state">
+          <span className="empty-symbol">
+            <Bookmark size={29} strokeWidth={1.2} />
+          </span>
+          <h3 className="serif">
+            {s.history.length
+              ? "No matching thoughts."
+              : "Good thoughts are worth keeping."}
+          </h3>
+          <p>
+            {s.history.length
+              ? "Try another search or show all types of work."
+              : "Your ideas and reviews are saved here. Save a draft from the editor to come back to it later."}
+          </p>
+          {!s.history.length && (
+            <button
+              className="text-button"
+              style={{ marginTop: 20 }}
+              onClick={() => s.setActiveTab("generate")}
+            >
+              Find your first idea <ArrowUpRight size={14} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="history-list">
+          {items.map((item) => (
+            <article className="panel history-card" key={item.id}>
+              <div className="history-card-top">
+                <span className="eyebrow">{labels[item.type]}</span>
+                <span className="mode-pill">
+                  {item.source === "live" ? "AI-assisted" : "Sample workspace"}
                 </span>
-
-                {/* Score badge for analysis */}
-                {item.type === "analysis" && item.score && (
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[11px] font-bold"
-                    style={{
-                      background:
-                        item.score >= 7
-                          ? "rgba(52,211,153,0.15)"
-                          : "rgba(255,77,109,0.15)",
-                      color: item.score >= 7 ? "#34d399" : "#ff6b8a",
+              </div>
+              <h3>
+                {item.type === "tweet"
+                  ? "A draft in your voice"
+                  : item.type === "analysis"
+                    ? "A second look at your words"
+                    : item.prompt}
+              </h3>
+              {item.type === "tweet" ? (
+                <p>{item.output}</p>
+              ) : item.type === "analysis" ? (
+                <p>{item.prompt}</p>
+              ) : (
+                <p>
+                  {item.ideas
+                    ?.slice(0, 2)
+                    .map((idea) => idea.hook || idea.idea)
+                    .join(" · ") || "Five saved angles for your next post."}
+                </p>
+              )}
+              <div className="history-card-footer">
+                <time dateTime={item.created_at}>
+                  {new Intl.DateTimeFormat(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  }).format(new Date(item.created_at))}
+                </time>
+                <div style={{ display: "flex", gap: 18 }}>
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      if (!s.reopen(item))
+                        setError(
+                          "This saved item couldn’t be opened. Its text is still shown here.",
+                        );
+                      else window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
-                    {item.score}/10
-                  </span>
-                )}
+                    Reopen <ArrowUpRight size={13} />
+                  </button>
+                  <button
+                    className="text-button"
+                    style={{ color: "var(--muted)" }}
+                    aria-label={`Remove saved ${labels[item.type].toLowerCase()}`}
+                    onClick={() => {
+                      s.deleteHistory(item.id);
+                      setDeleted(item);
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-
-              {/* Delete button */}
-              <button
-                onClick={() => handleDelete(item.id)}
-                disabled={deletingId === item.id}
-                className="p-1.5 rounded-lg transition-colors shrink-0"
-                style={{ color: "rgba(255,255,255,0.2)" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color = "#ff6b8a")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color =
-                    "rgba(255,255,255,0.2)")
-                }
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-
-            {/* Prompt */}
-            <p
-              className="text-xs leading-relaxed line-clamp-2"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              {item.prompt}
-            </p>
-
-            {/* Timestamp */}
-            <p
-              className="text-[10px]"
-              style={{ color: "rgba(255,255,255,0.2)" }}
-            >
-              {new Date(item.created_at).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          </div>
-        );
-      })}
-    </div>
+            </article>
+          ))}
+        </div>
+      )}
+      <p className="field-help" style={{ marginTop: 22 }}>
+        Up to 50 items stay in this browser. Copy important drafts before
+        clearing browser data.
+      </p>
+    </section>
   );
 }

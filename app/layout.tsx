@@ -1,25 +1,29 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
-
 const playfair = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-playfair",
-  weight: ["400", "600", "700"],
+  display: "swap",
 });
-
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
-
 export const metadata: Metadata = {
-  title: "Mousa — AI Content Muse for Twitter/X",
+  title: {
+    default: "Mousa — a little momentum for your next post",
+    template: "%s · Mousa",
+  },
   description:
-    "Generate post ideas, write captions and analyze your content with AI.",
+    "A thoughtful writing studio for X. Find an angle, shape a draft, and review your words. Explore the sample workspace without an account.",
+  openGraph: {
+    title: "Mousa — Less blank page. More you.",
+    description: "Find an angle. Shape a draft. Keep your voice.",
+    type: "website",
+  },
 };
-
 export default function RootLayout({
   children,
 }: {
@@ -27,14 +31,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        className={`${playfair.variable} ${inter.variable} min-h-screen`}
-        style={{ background: "#0d0015" }}
-      >
-        <div className="orb orb-1" />
-        <div className="orb orb-2" />
-        <div className="orb orb-3" />
-        <div className="relative z-10">{children}</div>
+      <body className={`${playfair.variable} ${inter.variable}`}>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        {children}
       </body>
     </html>
   );
