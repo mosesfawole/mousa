@@ -8,6 +8,7 @@ import type {
   GenerateResponse,
   Content,
   Draft,
+  ContentSource,
 } from "@/types";
 type Tab = "generate" | "analyze" | "history";
 interface ContentStore {
@@ -17,6 +18,7 @@ interface ContentStore {
   topic: string;
   ideas: Idea[];
   generationBrief: GenerateInput | null;
+  generationSource: ContentSource | null;
   draft: Draft | null;
   isGenerating: boolean;
   isExpanding: boolean;
@@ -143,6 +145,7 @@ export const useContentStore = create<ContentStore>((set, get) => {
           topic: s.topic,
           ideas: s.ideas,
           generationBrief: s.generationBrief,
+          generationSource: s.generationSource,
           draft: s.draft,
           tweetToAnalyze: s.tweetToAnalyze,
           analyzeNiche: s.analyzeNiche,
@@ -197,6 +200,7 @@ export const useContentStore = create<ContentStore>((set, get) => {
     topic: "",
     ideas: [],
     generationBrief: null,
+    generationSource: null,
     draft: null,
     isGenerating: false,
     isExpanding: false,
@@ -215,7 +219,7 @@ export const useContentStore = create<ContentStore>((set, get) => {
     setNiche: (v) => commit({ niche: v }),
     setTone: (v) => commit({ tone: v }),
     setTopic: (v) => commit({ topic: v }),
-    setIdeas: (v) => commit({ ideas: v }),
+    setIdeas: (v) => commit({ ideas: v, generationSource: null }),
     setIsGenerating: (v) => set({ isGenerating: v }),
     setIsExpanding: (v) => set({ isExpanding: v }),
     setGenerateError: (v) => set({ generateError: v }),
@@ -231,7 +235,12 @@ export const useContentStore = create<ContentStore>((set, get) => {
     setAnalyzeError: (v) => set({ analyzeError: v }),
     clearGenerator: () => {
       saveDraft();
-      commit({ ideas: [], draft: null, generateError: null });
+      commit({
+        ideas: [],
+        generationSource: null,
+        draft: null,
+        generateError: null,
+      });
     },
     clearAnalyzer: () =>
       commit({
@@ -268,6 +277,15 @@ export const useContentStore = create<ContentStore>((set, get) => {
           if (isDraft(saved.draft)) patch.draft = saved.draft;
           if (Array.isArray(saved.history))
             patch.history = saved.history.filter(isHistory).slice(0, 50);
+          const matchingHistory = patch.history?.find(
+            (item) =>
+              item.type === "idea" &&
+              patch.ideas?.length &&
+              patch.ideas.every((idea) => idea.content_id === item.id),
+          );
+          const source = saved.generationSource ?? matchingHistory?.source;
+          patch.generationSource =
+            source === "sample" || source === "live" ? source : null;
           if (typeof saved.tweetToAnalyze === "string")
             patch.tweetToAnalyze = saved.tweetToAnalyze.slice(0, 2000);
           if (typeof saved.analyzeNiche === "string")
@@ -305,6 +323,7 @@ export const useContentStore = create<ContentStore>((set, get) => {
       commit({
         ideas: data.ideas,
         generationBrief: brief,
+        generationSource: data.source,
         draft: null,
         generateError: null,
       });
@@ -346,6 +365,7 @@ export const useContentStore = create<ContentStore>((set, get) => {
         tone: brief.tone,
         topic: brief.topic || "",
         ideas: sameBrief ? get().ideas : [],
+        generationSource: sameBrief ? get().generationSource : null,
       });
     },
     setDraftText: (v) => {
@@ -389,6 +409,10 @@ export const useContentStore = create<ContentStore>((set, get) => {
             tone: item.tone || "casual",
             topic: item.prompt,
             ideas: parsed.ideas,
+            generationSource:
+              item.source === "sample" || item.source === "live"
+                ? item.source
+                : null,
             generationBrief: {
               niche: item.niche || "",
               tone: item.tone || "casual",

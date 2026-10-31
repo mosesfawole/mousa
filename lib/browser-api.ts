@@ -1,7 +1,27 @@
+import { useAIConnection } from "@/store/useAIConnection";
+
 export async function postContent<T>(path: string, body: unknown): Promise<T> {
+  if (!["/api/generate", "/api/expand", "/api/analyze"].includes(path))
+    throw new Error("Writing requests must use Mousa’s own endpoints.");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const connection = useAIConnection.getState();
+  if (
+    body &&
+    typeof body === "object" &&
+    "mode" in body &&
+    body.mode === "live" &&
+    connection.apiKey
+  ) {
+    headers["x-mousa-provider"] = connection.provider;
+    headers["x-mousa-api-key"] = connection.apiKey;
+  }
   const response = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
+    credentials: "same-origin",
+    cache: "no-store",
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(45000),
   });

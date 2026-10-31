@@ -1215,6 +1215,137 @@ p {
     flex-wrap: wrap;
   }
 }
+.workspace-topbar {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ai-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ai-connect-button {
+  font-size: 11px;
+  min-height: 34px;
+  padding: 7px 11px;
+}
+.ai-dialog {
+  width: min(530px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 24px 90px #23211b30;
+  overflow-y: auto;
+}
+.ai-dialog::backdrop {
+  background: #25231f66;
+  backdrop-filter: blur(3px);
+}
+.ai-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.ai-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.ai-close:hover {
+  background: var(--lavender);
+}
+.ai-dialog h2 {
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 400;
+  letter-spacing: -0.8px;
+  margin: 0 0 12px;
+}
+.ai-description {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.ai-privacy {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--lavender);
+  margin-top: 20px;
+  font-size: 12px;
+}
+.ai-privacy svg {
+  flex-shrink: 0;
+  color: var(--violet);
+  margin-top: 2px;
+}
+.ai-privacy p,
+.ai-current p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.ai-billing {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 16px 0 20px;
+}
+.ai-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.ai-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 22px;
+  font-size: 12px;
+}
+.ai-live-banner {
+  border-color: #b4bfd2;
+}
+.ai-dialog .field-help a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--violet);
+}
+@media (max-width: 600px) {
+  .ai-dialog {
+    padding: 22px;
+  }
+  .ai-dialog h2 {
+    font-size: 29px;
+  }
+  .ai-toolbar {
+    gap: 8px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

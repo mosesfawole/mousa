@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Feather,
   ArrowUpRight,
@@ -11,6 +11,7 @@ import {
   ScanLine,
 } from "lucide-react";
 import { useContentStore } from "@/store/useContentStore";
+import { useAIConnection } from "@/store/useAIConnection";
 import {
   postContent,
   errorMessage,
@@ -27,6 +28,15 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
   );
   const [includeTags, setIncludeTags] = useState(false);
   const [notice, setNotice] = useState("");
+  useEffect(() => {
+    return useAIConnection.subscribe(() => setExpandError(null));
+  }, []);
+  const ideasLabel =
+    s.generationSource === "sample"
+      ? "Sample ideas"
+      : s.generationSource === "live"
+        ? "AI-assisted ideas"
+        : "Saved ideas";
   function focusDraft() {
     setTimeout(() => document.getElementById("draft-text")?.focus(), 0);
   }
@@ -117,7 +127,7 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
           {s.isGenerating
             ? "Finding angles…"
             : s.ideas.length
-              ? `${s.ideas.length} ideas`
+              ? `${ideasLabel} · ${s.ideas.length}`
               : "A little room to think"}
         </span>
       </div>
@@ -134,7 +144,7 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
           ))}
         </div>
       ) : s.ideas.length ? (
-        <div className="idea-list" aria-label="Post ideas">
+        <div className="idea-list" aria-label={ideasLabel}>
           {s.ideas.map((idea, index) => (
             <article
               className={`idea-card ${draft?.ideaId === idea.id ? "selected" : ""}`}

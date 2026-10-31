@@ -1,6 +1,6 @@
 # Mousa
 
-A calm writing room for finding an angle, shaping a short post, and giving it a second look. Built with Next.js App Router, TypeScript, React, Zustand, and an optional Anthropic integration.
+A calm writing room for finding an angle, shaping a short post, and giving it a second look. Built with Next.js App Router, TypeScript, React, Zustand, and Anthropic/OpenAI integrations.
 
 ## The writing flow
 
@@ -35,7 +35,13 @@ npm start
 
 ## Optional live AI
 
-Copy `.env.example` to `.env.local` and supply `ANTHROPIC_API_KEY` privately. An optional `ANTHROPIC_MODEL` selects the model. Server credentials never enter the browser bundle. The studio offers live writing only when a key is present; missing credentials return a clear service-unavailable response. The sample release is verified without a provider key; live provider responses are validated by automated tests with mocks.
+Users can select **Connect your AI**, choose Anthropic or OpenAI, and add their own API key. Live writing uses Claude Sonnet 5.5 or GPT-5.6 Terra. Adding a key checks its format without an AI request; the provider verifies it on the first live request. API usage is billed by the provider, separately from ChatGPT/Claude subscriptions. Sample mode remains available without a key.
+
+Credentials live in a separate, non-persisted store in the current tab. Reload or Disconnect clears them. Keys travel through Mousa's server to the selected provider over HTTPS and are used only for that request; they are excluded from saved work, local/session storage, and database writes. Provider SDK logging and automatic retries are disabled, responses use `Cache-Control: no-store`, and OpenAI Responses uses `store: false`. Provider data retention policies still apply.
+
+An optional host-configured Anthropic connection remains available: copy `.env.example` to `.env.local` and supply `ANTHROPIC_API_KEY` privately. `ANTHROPIC_MODEL` can configure that host connection. A visitor's supplied key takes priority and never falls back to host credentials after validation or provider errors. Host credentials never enter the browser bundle.
+
+Tests exercise the actual SDKs against simulated HTTP responses for key routing and errors. The browser flow is verified without a valid paid provider key; successful generation against real provider accounts is not part of that verification.
 
 The server validates input lengths, tones, modes, and provider output. Legacy anonymous server history is retired: `/api/history` and `/api/histore` return 410. Current saved work uses browser storage, independent of Supabase availability.
 
@@ -53,4 +59,4 @@ Regression tests cover request validation, missing credentials, malformed provid
 
 ## Deploy
 
-Import `mosesfawole/mousa` into Vercel, select the Next.js preset, and deploy the production branch. Leave environment credentials unset for the sample experience. For an existing project, publish the production branch to trigger its deployment. No database setup is needed for this release.
+Import `mosesfawole/mousa` into Vercel, select the Next.js preset, and deploy the production branch. Leave host credentials unset to default to sample mode while allowing users to add their own keys. For an existing project, publish the production branch to trigger its deployment. No database setup is needed.

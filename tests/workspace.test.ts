@@ -1,5 +1,20 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { useContentStore } from "@/store/useContentStore";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import PostIdeas from "@/components/content/PostIdeas";
+// Render with the current client workspace. Zustand's server snapshot is the
+// empty initial workspace, before client hydration.
+vi.mock("@/store/useContentStore", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/store/useContentStore")>();
+  return {
+    useContentStore: Object.assign(
+      () => actual.useContentStore.getState(),
+      actual.useContentStore,
+    ),
+  };
+});
 
 beforeEach(() => {
   useContentStore.setState({
@@ -7,8 +22,71 @@ beforeEach(() => {
     draft: null,
     storageError: null,
     generationBrief: null,
+    ideas: [],
+    generationSource: null,
     analysisResult: null,
   } as never);
+});
+
+it("keeps an idea generation's source through reload and history reopen", () => {
+  const memory = new Map<string, string>();
+  vi.stubGlobal("window", {
+    localStorage: {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => memory.set(key, value),
+    },
+  });
+  const s = useContentStore.getState();
+  s.acceptGeneration(
+    {
+      ideas: [
+        {
+          id: "source-idea",
+          content_id: "source-work",
+          idea: "My angle",
+          hook: "My hook",
+          created_at: new Date().toISOString(),
+        },
+      ],
+      contentId: "source-work",
+      source: "live",
+    },
+    { niche: "Developers", tone: "casual" },
+  );
+  useContentStore.setState({ ideas: [], generationSource: null } as never);
+  s.hydrateWorkspace();
+  expect(useContentStore.getState()).toMatchObject({
+    generationSource: "live",
+  });
+  const saved = useContentStore.getState().history[0];
+  s.clearGenerator();
+  s.reopen(saved);
+  expect(useContentStore.getState()).toMatchObject({
+    generationSource: "live",
+  });
+});
+
+it("labels authored sample ideas even when the next request is live", () => {
+  useContentStore.getState().acceptGeneration(
+    {
+      ideas: [
+        {
+          id: "sample-idea",
+          content_id: "sample-work",
+          idea: "An authored angle",
+          hook: "An authored hook",
+          created_at: new Date().toISOString(),
+        },
+      ],
+      contentId: "sample-work",
+      source: "sample",
+    },
+    { niche: "Developers", tone: "casual" },
+  );
+  const html = renderToStaticMarkup(
+    createElement(PostIdeas, { sampleMode: false }),
+  );
+  expect(html).toContain("Sample ideas");
 });
 
 it("keeps later edits when the current draft is reopened", () => {
@@ -92,7 +170,10 @@ it("persists the actual reviewed text separately from subsequent edits", () => {
     analysisText: "Original text",
   });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 it("updates a saved draft rather than duplicating it", () => {
   const store = useContentStore.getState();
