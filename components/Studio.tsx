@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ChevronRight, Sparkles, Info, ArrowUpRight } from "lucide-react";
 import { useContentStore } from "@/store/useContentStore";
 import Navbar from "@/components/ui/Navbar";
@@ -7,12 +7,22 @@ import GeneratorForm from "@/components/content/GeneratorForm";
 import PostIdeas from "@/components/content/PostIdeas";
 import AnalyzerForm from "@/components/content/AnalyzerForm";
 import HistoryPanel from "@/components/content/HistoryPanel";
+import AIConnectionPanel from "@/components/AIConnectionPanel";
+import { useAIConnection } from "@/store/useAIConnection";
+import { AI_PROVIDERS } from "@/lib/ai-config";
 export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
   const s = useContentStore();
-  const [sampleMode, setSampleMode] = useState(!liveAvailable);
+  const ai = useAIConnection();
+  const sampleMode = ai.sampleMode;
+  const busy = s.isGenerating || s.isExpanding || s.isAnalyzing;
   useEffect(() => {
     useContentStore.getState().hydrateWorkspace();
   }, []);
+  useEffect(() => {
+    const workspace = useContentStore.getState();
+    workspace.setGenerateError(null);
+    workspace.setAnalyzeError(null);
+  }, [ai.apiKey, ai.provider, sampleMode]);
   const titles = {
     generate: [
       "A good post starts",
@@ -53,26 +63,33 @@ export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
                   : "Saved work"}
             </strong>
           </div>
-          {liveAvailable ? (
-            <button
-              className="mode-pill"
-              onClick={() => setSampleMode(!sampleMode)}
-              disabled={s.isGenerating || s.isExpanding || s.isAnalyzing}
-              aria-label={
-                sampleMode
-                  ? "Switch to live AI writing"
-                  : "Switch to sample workspace"
-              }
-            >
-              <span className="mode-dot" />
-              {sampleMode ? "Sample workspace" : "Live AI writing"}
-            </button>
-          ) : (
-            <span className="mode-pill">
-              <span className="mode-dot" />
-              Sample workspace
-            </span>
-          )}
+          <div className="ai-toolbar">
+            {liveAvailable || ai.apiKey ? (
+              <button
+                className="mode-pill"
+                onClick={() => ai.setSampleMode(!sampleMode)}
+                disabled={busy}
+                aria-label={
+                  sampleMode
+                    ? "Switch to live AI writing"
+                    : "Switch to sample workspace"
+                }
+              >
+                <span className="mode-dot" />
+                {sampleMode
+                  ? "Sample workspace"
+                  : ai.apiKey
+                    ? `${AI_PROVIDERS[ai.provider].name} · Live`
+                    : "Live AI writing"}
+              </button>
+            ) : (
+              <span className="mode-pill">
+                <span className="mode-dot" />
+                Sample workspace
+              </span>
+            )}
+            <AIConnectionPanel busy={busy} />
+          </div>
         </header>
         <main id="main" className="workspace-main">
           <div className="workspace-heading">
@@ -102,16 +119,29 @@ export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
               </button>
             )}
           </div>
-          {sampleMode && (
+          {sampleMode ? (
             <div className="sample-banner">
               <Info size={14} />
               <p>
-                <strong>You’re exploring a sample workspace.</strong> Ideas,
-                drafts, and reviews are illustrative examples, not live AI. Edit
-                and save your own words; your work stays in this browser.
+                <strong>You’re exploring a sample workspace.</strong> New ideas,
+                drafts, and reviews use illustrative examples. Saved work keeps
+                its original labels. Edit and save your own words; your work
+                stays in this browser.
               </p>
             </div>
-          )}
+          ) : ai.apiKey ? (
+            <div className="sample-banner ai-live-banner">
+              <Info size={14} />
+              <p>
+                <strong>
+                  Live writing with your {AI_PROVIDERS[ai.provider].name} key.
+                </strong>{" "}
+                Generating ideas, drafting, and reviewing use your provider’s
+                API allowance and are billed to your account. Saved work keeps
+                its original labels. Your key clears on reload.
+              </p>
+            </div>
+          ) : null}
           {s.storageError && (
             <div className="error-box" role="alert">
               {s.storageError}
