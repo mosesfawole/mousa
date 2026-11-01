@@ -12,6 +12,9 @@
   --violet: #6650a3;
   --lavender: #eeeaf7;
   --green: #446752;
+  --motion-fast: 140ms;
+  --motion-enter: 260ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 * {
   box-sizing: border-box;
@@ -108,7 +111,10 @@ p {
   background: var(--surface);
   font-weight: 500;
   font-size: 12px;
-  transition: background 0.18s;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 .btn:hover {
   background: #eeede7;
@@ -576,7 +582,9 @@ p {
   font-size: 12px;
   line-height: 1.65;
   resize: vertical;
-  transition: border 0.18s;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
 }
 .mousa-input:focus {
   outline: 2px solid #d9d0ec;
@@ -692,7 +700,6 @@ p {
   background: var(--surface);
   border-radius: 8px;
   padding: 18px;
-  animation: fade-in 0.25s ease;
 }
 .idea-card.selected {
   border-color: #b4a5d1;
@@ -1344,6 +1351,151 @@ p {
   }
   .ai-toolbar {
     gap: 8px;
+  }
+}
+.nav-item,
+.tone-option,
+.ai-close,
+button.mode-pill {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+.text-button,
+.landing-links a,
+.site-footer a,
+.workspace-footer a {
+  transition: color var(--motion-fast) ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-hero > div:first-child,
+  .hero-art,
+  .studio-grid,
+  .workspace-main > section,
+  .draft-panel,
+  .review-panel {
+    animation: fade-in var(--motion-enter) var(--motion-ease) backwards;
+  }
+  .hero-art {
+    animation-delay: 60ms;
+  }
+  .idea-card {
+    animation: fade-in var(--motion-enter) var(--motion-ease) backwards;
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease;
+  }
+  .idea-card:nth-child(2) {
+    animation-delay: 30ms;
+  }
+  .idea-card:nth-child(3) {
+    animation-delay: 60ms;
+  }
+  .idea-card:nth-child(4) {
+    animation-delay: 90ms;
+  }
+  .idea-card:nth-child(5) {
+    animation-delay: 120ms;
+  }
+  .notice,
+  .toast,
+  .error-box {
+    animation: fade-in var(--motion-fast) ease-out;
+  }
+  .btn,
+  .tone-option,
+  .ai-close,
+  button.mode-pill {
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--motion-ease);
+  }
+  .btn:active:not(:disabled),
+  .tone-option:active:not(:disabled),
+  .ai-close:active,
+  button.mode-pill:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn .lucide-arrow-up-right,
+  .btn .lucide-arrow-right,
+  .text-button .lucide-arrow-up-right {
+    transition: transform var(--motion-fast) var(--motion-ease);
+  }
+  .ai-dialog[open] {
+    animation: dialog-enter 200ms var(--motion-ease);
+  }
+  @keyframes dialog-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /* Native dialog transitions preserve its focus and Escape handling. */
+  @supports (transition-behavior: allow-discrete) {
+    .ai-dialog {
+      opacity: 0;
+      transform: translateY(8px) scale(0.99);
+      pointer-events: none;
+      transition:
+        opacity 180ms ease,
+        transform 180ms var(--motion-ease),
+        display 180ms allow-discrete,
+        overlay 180ms allow-discrete;
+    }
+    .ai-dialog[open] {
+      animation: none;
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+    }
+    .ai-dialog::backdrop {
+      background-color: transparent;
+      pointer-events: none;
+      transition:
+        background-color 180ms ease,
+        display 180ms allow-discrete,
+        overlay 180ms allow-discrete;
+    }
+    .ai-dialog[open]::backdrop {
+      background-color: #25231f66;
+      pointer-events: auto;
+    }
+    @starting-style {
+      .ai-dialog[open] {
+        opacity: 0;
+        transform: translateY(8px) scale(0.99);
+      }
+      .ai-dialog[open]::backdrop {
+        background-color: transparent;
+      }
+    }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+    .btn:hover:not(:disabled) .lucide-arrow-up-right,
+    .text-button:hover .lucide-arrow-up-right {
+      transform: translate(2px, -2px);
+    }
+    .btn:hover:not(:disabled) .lucide-arrow-right {
+      transform: translateX(2px);
+    }
+    .idea-card:hover,
+    .idea-card:focus-within {
+      box-shadow: 0 3px 12px #25272508;
+    }
   }
 }
 @media (prefers-reduced-motion: reduce) {
