@@ -40,8 +40,11 @@ button {
   cursor: pointer;
 }
 button:disabled {
-  cursor: wait;
+  cursor: default;
   opacity: 0.55;
+}
+button[aria-busy="true"] {
+  cursor: progress;
 }
 a {
   text-decoration: none;
@@ -704,6 +707,10 @@ p {
 .idea-card.selected {
   border-color: #b4a5d1;
 }
+.idea-card[data-pending="true"] {
+  border-color: #b4a5d1;
+  background: #f5f2fa;
+}
 .idea-number {
   font-size: 10px;
   color: #838979;
@@ -752,6 +759,25 @@ p {
   font-size: 10px;
   color: var(--muted);
 }
+.draft-length-track {
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--line);
+}
+.draft-length-track span {
+  display: block;
+  height: 100%;
+  background: var(--violet);
+  transform-origin: left;
+}
+.draft-length-track [data-length="near"] {
+  background: #927747;
+}
+.draft-length-track [data-length="over"] {
+  background: #a44f40;
+}
 .draft-actions {
   display: flex;
   gap: 8px;
@@ -759,6 +785,23 @@ p {
   padding-top: 17px;
   margin-top: 17px;
   border-top: 1px solid var(--line);
+}
+.copy-button,
+.save-button {
+  min-width: 120px;
+}
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn[data-success="true"] {
+  background: #edf3ed;
+  border-color: #b8cbb9;
+  color: #36543f;
+}
+.btn[data-success="true"]:disabled {
+  opacity: 1;
 }
 .tag-list {
   display: flex;
@@ -805,7 +848,9 @@ p {
   border-radius: 3px;
   background: #ecece4;
   margin-bottom: 12px;
-  animation: pulse 1.4s ease-in-out infinite;
+}
+.idea-skeleton {
+  min-height: 145px;
 }
 .review-panel {
   padding: 24px;
@@ -1370,10 +1415,11 @@ button.mode-pill {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .skeleton-line {
+    animation: pulse 1.8s ease-in-out infinite;
+  }
   .landing-hero > div:first-child,
   .hero-art,
-  .studio-grid,
-  .workspace-main > section,
   .draft-panel,
   .review-panel {
     animation: fade-in var(--motion-enter) var(--motion-ease) backwards;
@@ -1385,6 +1431,7 @@ button.mode-pill {
     animation: fade-in var(--motion-enter) var(--motion-ease) backwards;
     transition:
       border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
       box-shadow var(--motion-fast) ease;
   }
   .idea-card:nth-child(2) {
@@ -1403,6 +1450,32 @@ button.mode-pill {
   .toast,
   .error-box {
     animation: fade-in var(--motion-fast) ease-out;
+  }
+  .btn[data-success="true"] .action-icon {
+    animation: confirm-action 180ms var(--motion-ease);
+  }
+  .draft-length-track span {
+    transition:
+      transform 160ms linear,
+      background-color var(--motion-fast) ease;
+  }
+  .score-progress {
+    animation: reveal-score 420ms var(--motion-ease);
+  }
+  @keyframes confirm-action {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes reveal-score {
+    from {
+      stroke-dashoffset: 100;
+    }
   }
   .btn,
   .tone-option,

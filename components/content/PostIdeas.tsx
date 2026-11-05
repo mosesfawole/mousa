@@ -19,6 +19,7 @@ import {
   composePost,
 } from "@/lib/browser-api";
 import type { Idea, ExpandResponse } from "@/types";
+import { preferredScrollBehavior, revealDraft } from "@/lib/motion";
 export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
   const s = useContentStore();
   const [expandError, setExpandError] = useState<string | null>(null);
@@ -31,19 +32,21 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
   useEffect(() => {
     return useAIConnection.subscribe(() => setExpandError(null));
   }, []);
+  useEffect(() => {
+    if (copyStatus !== "copied") return;
+    const timer = setTimeout(() => setCopyStatus("idle"), 2200);
+    return () => clearTimeout(timer);
+  }, [copyStatus]);
   const ideasLabel =
     s.generationSource === "sample"
       ? "Sample ideas"
       : s.generationSource === "live"
         ? "AI-assisted ideas"
         : "Saved ideas";
-  function focusDraft() {
-    setTimeout(() => document.getElementById("draft-text")?.focus(), 0);
-  }
   async function expand(idea: Idea) {
     if (s.isExpanding || s.isGenerating) return;
     if (s.draft?.id === `draft-${idea.id}`) {
-      focusDraft();
+      revealDraft();
       return;
     }
     const existing = s.history.find(
@@ -51,14 +54,10 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
     );
     if (existing) {
       s.reopen(existing);
-      focusDraft();
-      setTimeout(
-        () =>
-          document
-            .getElementById("draft-panel")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        0,
-      );
+      setCopyStatus("idle");
+      setIncludeTags(false);
+      setNotice("");
+      revealDraft();
       return;
     }
     s.setIsExpanding(true);
@@ -85,14 +84,7 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
       setNotice("");
       setCopyStatus("idle");
       setIncludeTags(false);
-      focusDraft();
-      setTimeout(
-        () =>
-          document
-            .getElementById("draft-panel")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        0,
-      );
+      revealDraft();
     } catch (error) {
       setExpandError(errorMessage(error));
     } finally {
@@ -133,8 +125,8 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
       </div>
       {s.isGenerating ? (
         <div role="status" aria-label="Finding ideas">
-          {[0, 1, 2].map((i) => (
-            <div className="skeleton" key={i}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div className="skeleton idea-skeleton" key={i}>
               <div className="skeleton-line" style={{ width: "85%" }} />
               <div
                 className="skeleton-line"
@@ -149,6 +141,8 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
             <article
               className={`idea-card ${draft?.ideaId === idea.id ? "selected" : ""}`}
               key={idea.id}
+              data-pending={expandingId === idea.id || undefined}
+              aria-busy={expandingId === idea.id}
             >
               <span className="idea-number">
                 {String(index + 1).padStart(2, "0")}
@@ -215,6 +209,7 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
       {draft && (
         <section
           className="panel draft-panel"
+          key={draft.id}
           id="draft-panel"
           aria-label="Draft editor"
         >
@@ -250,6 +245,14 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
             <span className={count > 280 ? "over-limit" : ""}>
               {count} / 280
             </span>
+          </div>
+          <div className="draft-length-track" aria-hidden="true">
+            <span
+              data-length={
+                count > 280 ? "over" : count >= 250 ? "near" : "within"
+              }
+              style={{ transform: `scaleX(${Math.min(count / 280, 1)})` }}
+            />
           </div>
           {!!draft.hashtags.length && (
             <>
@@ -292,25 +295,35 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
           )}
           <div className="draft-actions">
             <button
-              className="btn btn-primary"
+              className="btn btn-primary copy-button"
               onClick={copy}
               disabled={!draft.tweet.trim()}
+              data-success={copyStatus === "copied" || undefined}
             >
-              {copyStatus === "copied" ? (
-                <Check size={13} />
-              ) : (
-                <Copy size={13} />
-              )}{" "}
+              <span className="action-icon" key={copyStatus} aria-hidden="true">
+                {copyStatus === "copied" ? (
+                  <Check size={13} />
+                ) : (
+                  <Copy size={13} />
+                )}
+              </span>
               {copyStatus === "copied" ? "Copied" : "Copy post"}
             </button>
             <button
-              className="btn"
+              className="btn save-button"
               onClick={() => {
                 if (s.saveDraft()) setNotice("Draft saved in this browser.");
               }}
               disabled={!draft.tweet.trim() || isSaved}
+              data-success={isSaved || undefined}
             >
-              <Bookmark size={13} />
+              <span
+                className="action-icon"
+                key={isSaved ? "saved" : "unsaved"}
+                aria-hidden="true"
+              >
+                {isSaved ? <Check size={13} /> : <Bookmark size={13} />}
+              </span>
               {isSaved ? "Saved" : "Save draft"}
             </button>
             <button
@@ -323,13 +336,19 @@ export default function PostIdeas({ sampleMode }: { sampleMode: boolean }) {
                 );
                 s.setAnalysisResult(null);
                 s.setActiveTab("analyze");
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.scrollTo({
+                  top: 0,
+                  behavior: preferredScrollBehavior(),
+                });
               }}
             >
               <ScanLine size={13} />
               Review
             </button>
           </div>
+          <span role="status" className="sr-only">
+            {copyStatus === "copied" ? "Post copied to clipboard." : ""}
+          </span>
           {copyStatus === "error" && (
             <p role="alert" className="error-box">
               Copy isn’t available in this browser. Select the draft text and

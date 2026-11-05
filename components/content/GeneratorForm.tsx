@@ -73,6 +73,7 @@ export default function GeneratorForm({ sampleMode }: { sampleMode: boolean }) {
         style={{ width: "100%" }}
         type="submit"
         disabled={busy || !s.niche.trim()}
+        aria-busy={s.isGenerating}
       >
         {s.isGenerating ? (
           <>
