@@ -4,7 +4,13 @@ import { KeyRound, X, ArrowUpRight, ShieldCheck, Unplug } from "lucide-react";
 import { useAIConnection } from "@/store/useAIConnection";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai-config";
 
-export default function AIConnectionPanel({ busy }: { busy: boolean }) {
+export default function AIConnectionPanel({
+  busy,
+  liveAvailable = false,
+}: {
+  busy: boolean;
+  liveAvailable?: boolean;
+}) {
   const connection = useAIConnection();
   const dialog = useRef<HTMLDialogElement>(null);
   const [provider, setProvider] = useState<AIProvider>("anthropic");
@@ -74,7 +80,9 @@ export default function AIConnectionPanel({ busy }: { busy: boolean }) {
         </h2>
         <p id="ai-description" className="ai-description">
           Connect your own AI account for live ideas, drafts, and reviews. The
-          sample studio is always available.
+          sample studio is always available.{" "}
+          {liveAvailable &&
+            "Mousa also offers a limited shared AI allowance without a personal key."}
         </p>
         {connection.apiKey && (
           <div className="ai-current">
@@ -94,7 +102,12 @@ export default function AIConnectionPanel({ busy }: { busy: boolean }) {
                 connection.disconnect();
                 setKey("");
                 setError("");
-                setNotice("API key disconnected. You’re back in sample mode.");
+                setNotice(
+                  liveAvailable
+                    ? "API key disconnected. Mousa’s shared AI is available."
+                    : "API key disconnected. You’re back in sample mode.",
+                );
+                if (liveAvailable) connection.setSampleMode(false);
                 close();
               }}
             >
@@ -116,8 +129,11 @@ export default function AIConnectionPanel({ busy }: { busy: boolean }) {
               }}
               disabled={busy}
             >
-              <option value="anthropic">Anthropic · Claude</option>
-              <option value="openai">OpenAI · GPT</option>
+              {Object.entries(AI_PROVIDERS).map(([id, item]) => (
+                <option key={id} value={id}>
+                  {item.label}
+                </option>
+              ))}
             </select>
             <span className="field-help">
               Live writing uses {config.modelName}.
@@ -134,7 +150,17 @@ export default function AIConnectionPanel({ busy }: { busy: boolean }) {
                 setKey(event.target.value);
                 setError("");
               }}
-              placeholder={provider === "anthropic" ? "sk-ant-…" : "sk-…"}
+              placeholder={
+                provider === "anthropic"
+                  ? "sk-ant-…"
+                  : provider === "groq"
+                    ? "gsk_…"
+                    : provider === "fortytwo"
+                      ? "Paste your API key"
+                      : provider === "openrouter"
+                        ? "sk-or-…"
+                        : "sk-…"
+              }
               autoComplete="off"
               spellCheck={false}
               autoCapitalize="none"
@@ -165,10 +191,10 @@ export default function AIConnectionPanel({ busy }: { busy: boolean }) {
             </div>
           </div>
           <p className="ai-billing">
-            {config.name} bills API usage to your account. A ChatGPT or Claude
-            subscription doesn’t include API credit. Adding a key makes no AI
-            request; generating ideas, drafting, and reviewing use your API
-            allowance.
+            {config.name} usage counts against your provider’s credits or free
+            allowance. A ChatGPT or Claude subscription doesn’t include API
+            credit. Adding a key makes no AI request; generating ideas,
+            drafting, and reviewing use your API allowance.
           </p>
           {error && (
             <p className="error-box" role="alert">

@@ -1,23 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { sampleIdeas, sampleDraft, sampleAnalysis } from "./sample";
-import { AI_PROVIDERS, isValidAPIKey, type AIProvider } from "./ai-config";
+import { ask } from "./ai-router";
+import { ContentError } from "./content-error";
+export { ContentError } from "./content-error";
 import type {
   AnalyzeResponse,
   ExpandResponse,
   GenerateInput,
   Tone,
 } from "@/types";
-export class ContentError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-  }
-}
 function object(value: unknown, status = 400): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new ContentError("Please send a valid request.", status);
@@ -79,101 +71,6 @@ async function input(req: NextRequest) {
   } catch (error) {
     if (error instanceof ContentError) throw error;
     throw new ContentError("Please send valid JSON.", 400);
-  }
-}
-function credentials(req: NextRequest) {
-  const provider = req.headers.get("x-mousa-provider") || "anthropic";
-  if (provider !== "anthropic" && provider !== "openai")
-    throw new ContentError(
-      "Choose Anthropic or OpenAI in Connect your AI.",
-      400,
-    );
-  const suppliedKey = req.headers.get("x-mousa-api-key");
-  const key =
-    suppliedKey === null
-      ? provider === "anthropic"
-        ? process.env.ANTHROPIC_API_KEY
-        : undefined
-      : suppliedKey.trim();
-  if (suppliedKey !== null && !isValidAPIKey(provider, key || ""))
-    throw new ContentError(
-      `Add a valid ${AI_PROVIDERS[provider].name} API key in Connect your AI.`,
-      400,
-    );
-  if (!key)
-    throw new ContentError(
-      "Live writing isn’t connected yet. You can explore the sample workspace.",
-      503,
-    );
-  return {
-    provider: provider as AIProvider,
-    key,
-    model:
-      suppliedKey === null
-        ? process.env.ANTHROPIC_MODEL || AI_PROVIDERS.anthropic.model
-        : AI_PROVIDERS[provider].model,
-  };
-}
-async function ask(
-  prompt: string,
-  req: NextRequest,
-): Promise<Record<string, unknown>> {
-  const { provider, key, model } = credentials(req);
-  let output: string;
-  if (provider === "openai") {
-    const client = new OpenAI({
-      apiKey: key,
-      baseURL: "https://api.openai.com/v1",
-      timeout: 30000,
-      maxRetries: 0,
-      logLevel: "off",
-    });
-    const response = await client.responses.create(
-      {
-        model,
-        input: prompt,
-        max_output_tokens: 2000,
-        reasoning: { effort: "none" },
-        text: { format: { type: "json_object" } },
-        store: false,
-      },
-      { signal: req.signal },
-    );
-    if (response.status !== "completed")
-      throw new ContentError(
-        "The writing service returned an incomplete response. Please try again.",
-        502,
-      );
-    output = response.output_text;
-  } else {
-    const client = new Anthropic({
-      apiKey: key,
-      baseURL: "https://api.anthropic.com",
-      timeout: 30000,
-      maxRetries: 0,
-      logLevel: "off",
-    });
-    const message = await client.messages.create(
-      {
-        model,
-        max_tokens: 1600,
-        messages: [{ role: "user", content: prompt }],
-      },
-      { signal: req.signal },
-    );
-    output = message.content
-      .filter((block) => block.type === "text")
-      .map((block) => (block.type === "text" ? block.text : ""))
-      .join("\n");
-  }
-  const result = output.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "").trim();
-  try {
-    return object(JSON.parse(result), 502);
-  } catch {
-    throw new ContentError(
-      "The writing service returned an incomplete response. Please try again.",
-      502,
-    );
   }
 }
 export function validateAnalysis(value: unknown): AnalyzeResponse {

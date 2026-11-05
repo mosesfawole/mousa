@@ -65,7 +65,8 @@ export default function HomePage() {
               </a>
             </div>
             <p className="hero-note">
-              <Check size={12} /> Explore the sample studio. No account needed.
+              <Check size={12} /> No account needed. Shared AI when available,
+              or connect your own.
             </p>
           </div>
           <div
