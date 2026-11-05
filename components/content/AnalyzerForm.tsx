@@ -10,6 +10,7 @@ import {
 import { useContentStore } from "@/store/useContentStore";
 import { postContent, errorMessage } from "@/lib/browser-api";
 import ScoreRing from "@/components/ui/ScoreRing";
+import { revealDraft } from "@/lib/motion";
 import type { AnalyzeResponse } from "@/types";
 export default function AnalyzerForm({ sampleMode }: { sampleMode: boolean }) {
   const s = useContentStore();
@@ -94,6 +95,7 @@ export default function AnalyzerForm({ sampleMode }: { sampleMode: boolean }) {
             className="btn btn-violet"
             style={{ width: "100%" }}
             disabled={s.isAnalyzing || !s.tweetToAnalyze.trim()}
+            aria-busy={s.isAnalyzing}
           >
             {s.isAnalyzing ? (
               <>
@@ -208,7 +210,7 @@ export default function AnalyzerForm({ sampleMode }: { sampleMode: boolean }) {
                     tip: "Keep the changes that sound like you.",
                     source: result.source || "sample",
                   });
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  revealDraft();
                 }}
               >
                 Open in the editor <ArrowUpRight size={14} />

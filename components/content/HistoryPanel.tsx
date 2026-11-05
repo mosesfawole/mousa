@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Search, Bookmark, ArrowUpRight, Trash2, Undo2 } from "lucide-react";
 import { useContentStore } from "@/store/useContentStore";
 import type { Content } from "@/types";
+import { preferredScrollBehavior } from "@/lib/motion";
 const labels = { idea: "Ideas", tweet: "Draft", analysis: "Review" };
 export default function HistoryPanel() {
   const s = useContentStore();
@@ -156,7 +157,11 @@ export default function HistoryPanel() {
                         setError(
                           "This saved item couldn’t be opened. Its text is still shown here.",
                         );
-                      else window.scrollTo({ top: 0, behavior: "smooth" });
+                      else
+                        window.scrollTo({
+                          top: 0,
+                          behavior: preferredScrollBehavior(),
+                        });
                     }}
                   >
                     Reopen <ArrowUpRight size={13} />

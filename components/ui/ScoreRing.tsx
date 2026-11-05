@@ -1,7 +1,6 @@
 "use client";
 export default function ScoreRing({ score }: { score: number }) {
   const value = Number.isFinite(score) ? Math.min(10, Math.max(1, score)) : 1;
-  const circumference = 2 * Math.PI * 34;
   return (
     <div
       className="score"
@@ -28,8 +27,10 @@ export default function ScoreRing({ score }: { score: number }) {
           stroke="var(--violet)"
           strokeWidth="4"
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - value / 10)}
+          className="score-progress"
+          pathLength={100}
+          strokeDasharray={100}
+          strokeDashoffset={100 - value * 10}
         />
       </svg>
       <span className="score-number">
