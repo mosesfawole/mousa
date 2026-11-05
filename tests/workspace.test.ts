@@ -3,6 +3,7 @@ import { useContentStore } from "@/store/useContentStore";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import PostIdeas from "@/components/content/PostIdeas";
+import Studio from "@/components/Studio";
 // Render with the current client workspace. Zustand's server snapshot is the
 // empty initial workspace, before client hydration.
 vi.mock("@/store/useContentStore", async (importOriginal) => {
@@ -26,6 +27,20 @@ beforeEach(() => {
     generationSource: null,
     analysisResult: null,
   } as never);
+});
+
+it("starts configured shared AI live and discloses its provider before writing", () => {
+  const html = renderToStaticMarkup(
+    createElement(Studio, {
+      liveAvailable: true,
+      sharedProviders: ["FortyTwo"],
+    }),
+  );
+  expect(html).toContain("Mousa AI · Limited");
+  expect(html).toContain("Live writing with Mousa’s shared AI.");
+  expect(html).toContain("FortyTwo");
+  expect(html).toContain("Find five ideas");
+  expect(html).not.toContain("You’re exploring a sample workspace.");
 });
 
 it("keeps an idea generation's source through reload and history reopen", () => {

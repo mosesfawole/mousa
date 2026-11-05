@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, Sparkles, Info, ArrowUpRight } from "lucide-react";
 import { useContentStore } from "@/store/useContentStore";
 import Navbar from "@/components/ui/Navbar";
@@ -10,10 +10,17 @@ import HistoryPanel from "@/components/content/HistoryPanel";
 import AIConnectionPanel from "@/components/AIConnectionPanel";
 import { useAIConnection } from "@/store/useAIConnection";
 import { AI_PROVIDERS } from "@/lib/ai-config";
-export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
+export default function Studio({
+  liveAvailable,
+  sharedProviders = [],
+}: {
+  liveAvailable: boolean;
+  sharedProviders?: string[];
+}) {
   const s = useContentStore();
   const ai = useAIConnection();
-  const sampleMode = ai.sampleMode;
+  const [modeChosen, setModeChosen] = useState(false);
+  const sampleMode = ai.apiKey || modeChosen ? ai.sampleMode : !liveAvailable;
   const busy = s.isGenerating || s.isExpanding || s.isAnalyzing;
   useEffect(() => {
     useContentStore.getState().hydrateWorkspace();
@@ -67,7 +74,10 @@ export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
             {liveAvailable || ai.apiKey ? (
               <button
                 className="mode-pill"
-                onClick={() => ai.setSampleMode(!sampleMode)}
+                onClick={() => {
+                  setModeChosen(true);
+                  ai.setSampleMode(!sampleMode);
+                }}
                 disabled={busy}
                 aria-label={
                   sampleMode
@@ -80,7 +90,7 @@ export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
                   ? "Sample workspace"
                   : ai.apiKey
                     ? `${AI_PROVIDERS[ai.provider].name} · Live`
-                    : "Live AI writing"}
+                    : "Mousa AI · Limited"}
               </button>
             ) : (
               <span className="mode-pill">
@@ -88,7 +98,7 @@ export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
                 Sample workspace
               </span>
             )}
-            <AIConnectionPanel busy={busy} />
+            <AIConnectionPanel busy={busy} liveAvailable={liveAvailable} />
           </div>
         </header>
         <main id="main" className="workspace-main">
@@ -141,7 +151,20 @@ export default function Studio({ liveAvailable }: { liveAvailable: boolean }) {
                 its original labels. Your key clears on reload.
               </p>
             </div>
-          ) : null}
+          ) : (
+            <div className="sample-banner ai-live-banner">
+              <Info size={14} />
+              <p>
+                <strong>Live writing with Mousa’s shared AI.</strong> A limited
+                allowance is included. Your brief and draft may be sent to{" "}
+                {sharedProviders.join(", ") ||
+                  "Mousa’s configured AI providers"}
+                , with another provider tried when a service is busy. Connect
+                your own key to choose a provider and use your own allowance, or
+                switch to the sample workspace.
+              </p>
+            </div>
+          )}
           {s.storageError && (
             <div className="error-box" role="alert">
               {s.storageError}
